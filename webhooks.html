@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Webhook Manager</title>
+
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f6f8fa;
+      margin: 0;
+      padding: 30px;
+    }
+
+    h2 {
+      margin-top: 0;
+      color: #222;
+    }
+
+    .card {
+      background: #fff;
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+      max-width: 600px;
+      margin-bottom: 20px;
+    }
+
+    label {
+      display: block;
+      margin-top: 12px;
+      font-weight: bold;
+      color: #555;
+    }
+
+    input {
+      width: 100%;
+      padding: 10px;
+      margin-top: 5px;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+      font-size: 15px;
+    }
+
+    button {
+      margin-top: 15px;
+      padding: 10px 15px;
+      border: none;
+      border-radius: 6px;
+      background: #007bff;
+      color: white;
+      font-size: 15px;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background: #0056b3;
+    }
+
+    .secondary {
+      background: #6c757d;
+    }
+
+    .secondary:hover {
+      background: #565e64;
+    }
+
+    .webhook-card {
+      background: white;
+      padding: 15px;
+      border-radius: 8px;
+      border: 1px solid #ddd;
+      margin-bottom: 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+    }
+
+    .webhook-info {
+      font-size: 15px;
+      color: #333;
+    }
+
+    .webhook-buttons button {
+      margin-left: 10px;
+    }
+
+    .danger {
+      background: #dc3545;
+    }
+    .danger:hover {
+      background: #b02a37;
+    }
+  </style>
+</head>
+
+<body>
+
+<h2>Webhook Configuration</h2>
+
+<div class="card">
+  <label>Webhook URL</label>
+  <input id="url" type="text" placeholder="https://webhook.site/123">
+
+  <label>Event Name</label>
+  <input id="event" type="text" value="product_imported">
+
+  <button onclick="addWebhook()">Add Webhook</button>
+  <button class="secondary" onclick="loadWebhooks()">Refresh List</button>
+</div>
+
+<div id="list"></div>
+
+<script>
+  const API = "http://localhost:8000/api/v1";
+
+  async function addWebhook() {
+      const url = document.getElementById("url").value;
+      const event = document.getElementById("event").value;
+
+      await fetch(API + "/webhooks", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ url, event })
+      });
+
+      alert("Webhook Added");
+      loadWebhooks();
+  }
+
+  async function loadWebhooks() {
+      const res = await fetch(API + "/webhooks");
+      const data = await res.json();
+
+      let html = "<h3>Registered Webhooks</h3>";
+
+      data.forEach(w => {
+          html += `
+              <div class="webhook-card">
+                  <div class="webhook-info">
+                      <b>${w.url}</b><br>
+                      <span style="color:#666;">Event: ${w.event}</span>
+                  </div>
+                  <div class="webhook-buttons">
+                      <button onclick="testWebhook(${w.id})">Test</button>
+                      <button class="danger" onclick="deleteWebhook(${w.id})">Delete</button>
+                  </div>
+              </div>
+          `;
+      });
+
+      document.getElementById("list").innerHTML = html;
+  }
+
+  async function testWebhook(id) {
+      const res = await fetch(`${API}/webhooks/${id}/test`, {
+          method: "POST"
+      });
+
+      const out = await res.json();
+      alert("Webhook Test Sent:\n" + JSON.stringify(out, null, 2));
+  }
+
+  async function deleteWebhook(id) {
+      if (!confirm("Delete this webhook?")) return;
+
+      await fetch(`${API}/webhooks/${id}`, { method: "DELETE" });
+      alert("Webhook Deleted");
+      loadWebhooks();
+  }
+
+  // Load on page start
+  loadWebhooks();
+</script>
+
+</body>
+</html>

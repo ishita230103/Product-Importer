@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Product Importer – Upload CSV</title>
+
+  <style>
+    body {
+        background: #f5f7fa;
+        font-family: "Segoe UI", Arial, sans-serif;
+        margin: 0;
+        padding: 40px;
+        display: flex;
+        justify-content: center;
+    }
+
+    .card {
+        background: #fff;
+        width: 450px;
+        padding: 25px 30px;
+        border-radius: 14px;
+        box-shadow: 0 8px 25px rgba(0,0,0,0.08);
+        text-align: center;
+        animation: fadeIn 0.3s ease-in-out;
+    }
+
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(8px); }
+        to   { opacity: 1; transform: translateY(0); }
+    }
+
+    h2 {
+        font-size: 22px;
+        font-weight: 600;
+        color: #333;
+        margin-top: 0;
+        margin-bottom: 20px;
+    }
+
+    input[type="file"] {
+        width: 100%;
+        padding: 12px;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        background: #fafafa;
+        margin-bottom: 18px;
+        cursor: pointer;
+        font-size: 14px;
+    }
+
+    button {
+        width: 100%;
+        padding: 14px;
+        background: #4CAF50;
+        border: none;
+        color: #fff;
+        font-weight: 600;
+        border-radius: 8px;
+        font-size: 16px;
+        cursor: pointer;
+        transition: background 0.2s ease;
+    }
+
+    button:hover {
+        background: #45a049;
+    }
+
+    .progress-container {
+        margin-top: 25px;
+    }
+
+    progress {
+        width: 100%;
+        height: 20px;
+        border-radius: 8px;
+        overflow: hidden;
+        appearance: none;
+    }
+
+    progress::-webkit-progress-bar {
+        background-color: #e6e6e6;
+        border-radius: 8px;
+    }
+
+    progress::-webkit-progress-value {
+        background-color: #4CAF50;
+        border-radius: 8px;
+    }
+
+    #msg {
+        margin-top: 12px;
+        font-size: 15px;
+        color: #444;
+        font-weight: 500;
+    }
+  </style>
+</head>
+
+<body>
+
+<div class="card">
+  <h2>📦 Upload Product CSV</h2>
+
+  <input id="csv" type="file" accept=".csv">
+
+  <button onclick="upload()">Upload CSV</button>
+
+  <div class="progress-container">
+    <progress id="bar" value="0" max="100"></progress>
+  </div>
+
+  <p id="msg">Waiting for file...</p>
+</div>
+
+<script>
+  async function upload() {
+      let file = document.getElementById("csv").files[0];
+      if (!file) {
+          alert("Please select a CSV file");
+          return;
+      }
+
+      document.getElementById("msg").innerHTML = "Uploading…";
+
+      let fd = new FormData();
+      fd.append("file", file);
+
+      let res = await fetch("http://localhost:8000/api/v1/upload", {
+          method: "POST",
+          body: fd
+      });
+
+      let data = await res.json();
+      let job = data.job_id;
+
+      document.getElementById("msg").innerHTML = "Processing…";
+
+      let ws = new WebSocket(`ws://localhost:8000/api/v1/ws/${job}`);
+
+      ws.onmessage = (event) => {
+          const p = JSON.parse(event.data);
+
+          const pct = Math.round((p.processed / p.total) * 100);
+
+          document.getElementById("bar").value = pct;
+
+          document.getElementById("msg").innerHTML =
+              `${pct}% — ${p.processed.toLocaleString()} / ${p.total.toLocaleString()} rows`;
+
+          if (pct >= 100) {
+              document.getElementById("msg").innerHTML = "✔ Import Completed!";
+          }
+      };
+  }
+</script>
+
+</body>
+</html>
